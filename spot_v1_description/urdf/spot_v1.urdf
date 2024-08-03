@@ -230,14 +230,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/base_link.stl" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="silver"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/base_link.stl" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -250,14 +250,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0.104498 -0.154985 -0.086482"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/lower_fl_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/lower_fl_1.stl" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="silver"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0.104498 -0.154985 -0.086482"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/lower_fl_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/lower_fl_1.stl" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -270,14 +270,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0.101498 -0.130536 -0.17"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/upper_fl_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/upper_fl_1.stl" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="silver"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0.101498 -0.130536 -0.17"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/upper_fl_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/upper_fl_1.stl" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -290,14 +290,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0.101498 0.179518 -0.17"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/upper_bl_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/upper_bl_1.stl" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="silver"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0.101498 0.179518 -0.17"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/upper_bl_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/upper_bl_1.stl" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -310,14 +310,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0.104498 0.155068 -0.086482"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/lower_bl_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/lower_bl_1.stl" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="silver"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0.104498 0.155068 -0.086482"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/lower_bl_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/lower_bl_1.stl" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -330,14 +330,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="-0.101498 -0.130536 -0.17"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/upper_fr_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/upper_fr_1.stl" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="silver"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="-0.101498 -0.130536 -0.17"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/upper_fr_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/upper_fr_1.stl" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -350,14 +350,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="-0.101498 0.179518 -0.17"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/upper_br_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/upper_br_1.stl" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="silver"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="-0.101498 0.179518 -0.17"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/upper_br_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/upper_br_1.stl" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -370,14 +370,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="-0.104498 -0.154985 -0.086482"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/lower_fr_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/lower_fr_1.stl" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="silver"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="-0.104498 -0.154985 -0.086482"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/lower_fr_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/lower_fr_1.stl" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -390,14 +390,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="-0.104498 0.155068 -0.086482"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/lower_br_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/lower_br_1.stl" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="silver"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="-0.104498 0.155068 -0.086482"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/lower_br_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/lower_br_1.stl" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -410,14 +410,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0.0625 0.188018 -0.17"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/elbow_bl_5.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/elbow_bl_5.stl" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="silver"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0.0625 0.188018 -0.17"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/elbow_bl_5.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/elbow_bl_5.stl" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -430,14 +430,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0.0625 -0.139036 -0.17"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/elbow_fl_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/elbow_fl_1.stl" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="silver"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0.0625 -0.139036 -0.17"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/elbow_fl_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/elbow_fl_1.stl" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -450,14 +450,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="-0.0625 0.188018 -0.17"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/elbow_br_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/elbow_br_1.stl" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="silver"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="-0.0625 0.188018 -0.17"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/elbow_br_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/elbow_br_1.stl" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -470,14 +470,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="-0.0625 -0.139036 -0.17"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/elbow_fr_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/elbow_fr_1.stl" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="silver"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="-0.0625 -0.139036 -0.17"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/elbow_fr_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/elbow_fr_1.stl" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -490,14 +490,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="-0.0 0.024491 -0.215"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/base_laser_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/base_laser_1.stl" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="silver"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="-0.0 0.024491 -0.215"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/base_laser_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/base_laser_1.stl" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -510,14 +510,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="-0.0 0.024491 -0.125"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/base_imu.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/base_imu_1.stl" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="silver"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="-0.0 0.024491 -0.125"/>
       <geometry>
-        <mesh filename="file:///home/parallels/spot_ws/install/spot_v1_description/share/spot_v1_description/meshes/base_imu.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="meshes/base_imu_1.stl" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
