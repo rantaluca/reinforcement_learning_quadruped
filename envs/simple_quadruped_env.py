@@ -23,7 +23,7 @@ class QuadrupedEnv(gym.Env):
         #Observation space is the joint positions, joint velocities, linear and angular velocity from the imu and data from the lidar
 
         # self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(36,), dtype=np.float32)  #Observation: Example state + LIDAR + IMU
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(51,), dtype=np.float32)  #Observation: state + LIDAR + IMU + Pose Estimation + Pose Target
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(66,), dtype=np.float32)  #Observation: state + LIDAR + IMU + Pose Estimation + Pose Target
 
         self.time_on_ground = 0
         self.treshold_target = 0.1
@@ -31,31 +31,34 @@ class QuadrupedEnv(gym.Env):
         p.connect(p.GUI)  # or p.DIRECT non-graphical version
         p.setAdditionalSearchPath(pybullet_data.getDataPath()) #Pybullet models library
     
-    def reset(self):
-        # New goal choosen randomly
+    def reset(self, seed=None, options=None):
+        super().reset(seed=seed)
+        self.np_random, _ = gym.utils.seeding.np_random(seed)
+    
         self.target_position = [np.random.uniform(3.0, 7.0), np.random.uniform(3.0, 7.0), np.random.uniform(0.4, 0.7)]
         self.target_orientation = [np.random.uniform(-np.pi, np.pi), np.random.uniform(-np.pi, np.pi), np.random.uniform(-np.pi, np.pi)]
         #Called at the start of an episode
         p.resetSimulation()
         p.setGravity(0, 0, -9.81)
         p.loadURDF("plane.urdf")
-        self.robot_id = p.loadURDF("/ressources/urdfs/spot/spot_v1.urdf", [0, 0, 0.5])
+        self.robot_id = p.loadURDF("/ressources/urdfs/spot/spot_v1.urdf", [0, 0, 0.1])
         self.time_on_ground = 0
-        # Adding the lidar
-        self.lidar_joint_index = p.createConstraint(self.robot_id, -1, -1, -1, p.JOINT_FIXED, [0, 0, 0], [0, 0, 0], [0, 0, 0.5])
         #Used to reset the robot to a starting position if it spends too much time on the ground
         return self._get_observation(), {}
     
     def step(self, action):
         #Called at every step of the episode, with the action chosen by the agent given as input
-        for joint_index in range(p.getNumJoints(self.robot_id)):
+        for joint_index in range(12):  # Limit to 12 joints
             p.setJointMotorControl2(self.robot_id, joint_index, p.POSITION_CONTROL, action[joint_index])
         p.stepSimulation()
         #The resulting observation, reward, done and info are computed and returned
         truncated = False
         done = False
         obs = self._get_observation()
-        reward = self.compute_reward(p.getBasePositionAndOrientation(self.robot_id), self.target_position)
+        position, orientation = p.getBasePositionAndOrientation(self.robot_id)
+        #Converting to euler 
+        robot_orientation_euler = p.getEulerFromQuaternion(orientation)
+        reward = self.compute_reward(position, self.target_position, robot_orientation_euler, self.target_orientation)
         #If the robot reach the point ot falls the episode is terminated
         contact_points = p.getContactPoints(bodyA=self.robot_id, linkIndexA=-1)
         #If the robot is on the ground for too long, the episode is terminated
@@ -63,12 +66,7 @@ class QuadrupedEnv(gym.Env):
             self.time_on_ground += 1
             if self.time_on_ground > 150:
                 done = True
-                truncated = True
-
-        position, orientation = p.getBasePositionAndOrientation(self.robot_id)
-        #Converting to euler 
-        robot_orientation_euler = p.getEulerFromQuaternion(orientation)
-
+                truncated = True        
         # Checking if position and orientation are close enough to the target
         if (np.linalg.norm(np.array(position) - np.array(self.target_position)) < self.treshold_target and
             np.linalg.norm(np.array(robot_orientation_euler) - np.array(self.target_orientation)) < self.treshold_target):
@@ -82,20 +80,24 @@ class QuadrupedEnv(gym.Env):
         joint_positions = [state[0] for state in joint_states]
         joint_velocities = [state[1] for state in joint_states]
         #Lidar and IMU 
-        lidar_data = self._simulate_lidar()
+        position, orientation = p.getBasePositionAndOrientation(self.robot_id) #to be commented if no position in observatio
+        orientation_euler = p.getEulerFromQuaternion(orientation)
+        lidar_data = self._simulate_lidar(position, orientation)
         imu_data = self._simulate_imu()
-        position, orientation = p.getBasePositionAndOrientation(self.robot_id) #to be commented if no position in observation
-        return np.array(joint_positions + joint_velocities + lidar_data + imu_data + list(position) + list(orientation) + self.target_position + self.target_orientation)
+        return np.array(joint_positions + joint_velocities + lidar_data + imu_data + list(position) + list(orientation_euler) + self.target_position + self.target_orientation)
         #return np.array(joint_positions + joint_velocities + lidar_data + imu_data + self.target_position + self.target_orientation)
 
-    def _simulate_lidar(self):
-        #Simulates the lidar data
+    def _simulate_lidar(self, position, orientation):
         lidar_data = []
-        for i in range(120):
-            ray_from = [0, 0, 0.5]
-            ray_to = [4*np.sin(i * np.pi / 60), 4*np.cos(i * np.pi / 60), 0.5]
+        lidar_height = 0.1
+        lidar_position = [position[0], position[1], position[2]+lidar_height]
+        for i in range(20):  # Collect 20 points
+            angle = i * (2 * np.pi / 20)  # Divide 360° into 20 segments
+            ray_from = lidar_position  
+            ray_to = [4 * np.sin(angle), 4 * np.cos(angle), position[2]+lidar_height]
             result = p.rayTest(ray_from, ray_to)
-            lidar_data.append(result[0])
+            distance = result[0][2] if result[0][0] != -1 else 4.0  # Max distance if no hit
+            lidar_data.append(distance)
         return lidar_data
     
     def _simulate_imu(self):
@@ -104,10 +106,13 @@ class QuadrupedEnv(gym.Env):
         imu_data = list(base_velocity) + list(base_angular_velocity)
         return imu_data
     
-    def compute_reward(self, position, target_position):
-        #Computes the reward based on the distance to the target position
-        distance = np.linalg.norm(np.array(position) - np.array(target_position))
-        return -distance - self.time_on_ground * 0.4
+    def compute_reward(self, position, target_position, orientation, target_orientation):
+        # Compute the positional distance and orientation to the target
+        position_distance = np.linalg.norm(np.array(position) - np.array(target_position))
+        orientation_distance = np.linalg.norm(np.array(orientation) - np.array(target_orientation))    
+        # Calculate the reward with position, orientation and time on ground penalties
+        reward = -position_distance - 0.5 * orientation_distance - self.time_on_ground * 0.4  
+        return reward
     
     def render(self, mode='human'):
         pass
