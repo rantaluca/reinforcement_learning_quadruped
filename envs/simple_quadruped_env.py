@@ -28,21 +28,23 @@ class QuadrupedEnv(gym.Env):
         self.time_on_ground = 0
         self.treshold_target = 0.1
         
-        p.connect(p.GUI)  # or p.DIRECT non-graphical version
+        p.connect(p.GUI)  # or p.GUI non-graphical version
         p.setAdditionalSearchPath(pybullet_data.getDataPath()) #Pybullet models library
     
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         self.np_random, _ = gym.utils.seeding.np_random(seed)
     
-        self.target_position = [np.random.uniform(3.0, 7.0), np.random.uniform(3.0, 7.0), np.random.uniform(0.4, 0.7)]
+        self.target_position = [np.random.uniform(3.0, 20.0), np.random.uniform(3.0, 20.0), np.random.uniform(0.4, 0.7)]
         self.target_orientation = [np.random.uniform(-np.pi, np.pi), np.random.uniform(-np.pi, np.pi), np.random.uniform(-np.pi, np.pi)]
         #Called at the start of an episode
         p.resetSimulation()
-        p.setGravity(0, 0, -9.81)
+        p.setGravity(0, 0,-9.81)
         p.loadURDF("plane.urdf")
         self.robot_id = p.loadURDF("/ressources/urdfs/spot/spot_v1.urdf", [0, 0, 0.1])
         self.time_on_ground = 0
+
+
         #Used to reset the robot to a starting position if it spends too much time on the ground
         return self._get_observation(), {}
     
@@ -62,11 +64,11 @@ class QuadrupedEnv(gym.Env):
         #If the robot reach the point ot falls the episode is terminated
         contact_points = p.getContactPoints(bodyA=self.robot_id, linkIndexA=-1)
         #If the robot is on the ground for too long, the episode is terminated
-        if contact_points:
-            self.time_on_ground += 1
-            if self.time_on_ground > 150:
-                done = True
-                truncated = True        
+        # if contact_points:
+        #     self.time_on_ground += 1
+        #     if self.time_on_ground > 350:
+        #         done = True
+        #         truncated = True        
         # Checking if position and orientation are close enough to the target
         if (np.linalg.norm(np.array(position) - np.array(self.target_position)) < self.treshold_target and
             np.linalg.norm(np.array(robot_orientation_euler) - np.array(self.target_orientation)) < self.treshold_target):
