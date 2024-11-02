@@ -10,6 +10,8 @@ import pybullet_data
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
+import math
+import time
 from stable_baselines3 import PPO
 
 
@@ -40,10 +42,15 @@ class QuadrupedEnv(gym.Env):
         #Called at the start of an episode
         p.resetSimulation()
         p.setGravity(0, 0,-9.81)
-        p.loadURDF("plane.urdf")
-        self.robot_id = p.loadURDF("/ressources/urdfs/spot/spot_v1.urdf", [0, 0, 0.1])
+        plane_id = p.loadURDF("plane.urdf")
+        #Setting the friction for the ground with the robot
+        p.changeDynamics(plane_id, -1, lateralFriction=1.5)
+        self.robot_id = p.loadURDF("/ressources/urdfs/spot/spot_v1.urdf", [0, 0, 0])
+        #reset the position of the robot
+        for joint_index in range(p.getNumJoints(self.robot_id)):
+            p.resetJointState(self.robot_id, joint_index, targetValue=0)
+        p.resetBasePositionAndOrientation(self.robot_id, [0, 0, 0], [0, 0, 0, 1])
         self.time_on_ground = 0
-
 
         #Used to reset the robot to a starting position if it spends too much time on the ground
         return self._get_observation(), {}
@@ -58,17 +65,18 @@ class QuadrupedEnv(gym.Env):
         done = False
         obs = self._get_observation()
         position, orientation = p.getBasePositionAndOrientation(self.robot_id)
+        linear_velocity, _ = p.getBaseVelocity(self.robot_id)
         #Converting to euler 
         robot_orientation_euler = p.getEulerFromQuaternion(orientation)
-        reward = self.compute_reward(position, self.target_position, robot_orientation_euler, self.target_orientation)
+        reward = self.compute_reward(position, self.target_position, robot_orientation_euler, self.target_orientation, linear_velocity)
         #If the robot reach the point ot falls the episode is terminated
         contact_points = p.getContactPoints(bodyA=self.robot_id, linkIndexA=-1)
         #If the robot is on the ground for too long, the episode is terminated
-        # if contact_points:
-        #     self.time_on_ground += 1
-        #     if self.time_on_ground > 350:
-        #         done = True
-        #         truncated = True        
+        if contact_points:
+            self.time_on_ground += 1
+            if self.time_on_ground > 450:
+                done = True
+                truncated = True        
         # Checking if position and orientation are close enough to the target
         if (np.linalg.norm(np.array(position) - np.array(self.target_position)) < self.treshold_target and
             np.linalg.norm(np.array(robot_orientation_euler) - np.array(self.target_orientation)) < self.treshold_target):
@@ -108,12 +116,22 @@ class QuadrupedEnv(gym.Env):
         imu_data = list(base_velocity) + list(base_angular_velocity)
         return imu_data
     
-    def compute_reward(self, position, target_position, orientation, target_orientation):
-        # Compute the positional distance and orientation to the target
+    def compute_reward(self, position, target_position, orientation, target_orientation, linear_velocity):
+        # Computes the positional distance and orientation to the target
         position_distance = np.linalg.norm(np.array(position) - np.array(target_position))
-        orientation_distance = np.linalg.norm(np.array(orientation) - np.array(target_orientation))    
-        # Calculate the reward with position, orientation and time on ground penalties
-        reward = -position_distance - 0.5 * orientation_distance - self.time_on_ground * 0.4  
+        orientation_distance = np.linalg.norm(np.array(orientation) - np.array(target_orientation))   
+
+        # Calculates the magnitude of velocity in the x-y plane
+        forward_plane_velocity = math.sqrt(linear_velocity[0]**2 + linear_velocity[1]**2)
+
+        #Calculates the roll angle ( meaning the robot is flipped over)
+        roll_angle = orientation[0]
+        roll_reward = -abs(roll_angle - math.pi)
+        # Calculates the reward with position, orientation and time on ground penalties
+        if position_distance > 0.3:
+            reward = -position_distance - self.time_on_ground + roll_reward + 5*forward_plane_velocity 
+        else:
+            reward = -position_distance -orientation_distance - self.time_on_ground + roll_reward + 5* forward_plane_velocity
         return reward
     
     def render(self, mode='human'):

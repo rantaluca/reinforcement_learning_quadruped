@@ -223,7 +223,7 @@
   </gazebo>
   <link name="base_link">
     <inertial>
-      <origin rpy="0 0 0" xyz="3.3750779948604757e-15 0.0014661695131983521 0.17036122042657198"/>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
       <mass value="4.569295440014468"/>
       <inertia ixx="0.064329" ixy="-0.0" ixz="-0.0" iyy="0.010005" iyz="-0.000337" izz="0.069095"/>
     </inertial>
