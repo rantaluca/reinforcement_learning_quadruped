@@ -1,7 +1,7 @@
 import os
 import gymnasium as gym
 from stable_baselines3 import PPO
-from envs.simple_quadruped_env_mj import QuadrupedEnvMJ
+#from envs.simple_quadruped_env_mj import QuadrupedEnvMJ
 from envs.simple_quadruped_env import QuadrupedEnv
 from stable_baselines3.common.callbacks import CheckpointCallback
 

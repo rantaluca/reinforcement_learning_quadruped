@@ -11,6 +11,7 @@ import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
 import math
+import os
 import time
 from stable_baselines3 import PPO
 
@@ -29,8 +30,14 @@ class QuadrupedEnv(gym.Env):
 
         self.time_on_ground = 0
         self.treshold_target = 0.05
+        self.prev_position = [0, 0, 0]
+        self.prev_orientation = [0, 0, 0, 1]
         
         p.connect(p.GUI)  # or p.GUI non-graphical version
+        p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)  # Disable default UI
+        p.configureDebugVisualizer(p.COV_ENABLE_SHADOWS, 1)  # Enable shadows
+        p.configureDebugVisualizer(p.COV_ENABLE_WIREFRAME, 0)  # Disable wireframe
+
         p.setAdditionalSearchPath(pybullet_data.getDataPath()) #Pybullet models library
     
     def reset(self, seed=None, options=None):
@@ -50,21 +57,26 @@ class QuadrupedEnv(gym.Env):
 
         #simple forward target
         self.target_twist = {
-            'linear_x': 0,  # linear velocity in the x-direction
-            'linear_y': 0.2,  # linear velocity in the y-direction
+            'linear_x': 0.50,  # linear velocity in the x-direction
+            'linear_y': 0,  # linear velocity in the y-direction
             'angular': 0    # angular velocity (rotation)
         }
 
         #Called at the start of an episode
         p.resetSimulation()
         p.setGravity(0, 0,-9.81)
+        p.setTimeStep(1/500)  # Smaller time step
+
+        p.setPhysicsEngineParameter(numSolverIterations=50)
+
         plane_id = p.loadURDF("plane.urdf")
         #Setting the friction for the ground with the robot
-        p.changeDynamics(plane_id, -1, lateralFriction=1.5)
+        p.changeDynamics(plane_id, -1, spinningFriction=0.001, rollingFriction=0.001)
         # #adding a visual target ( with a sphere)
         # self.target_id = p.loadURDF("sphere_small.urdf", self.target_position)
         #Adding the robot
-        self.robot_id = p.loadURDF("/ressources/urdfs/spot/spot_v1.urdf", [0, 0, 0])
+        urdf_path = os.path.join(os.path.dirname(__file__), "../ressources/urdfs/spot/spot_v1.urdf")
+        self.robot_id = p.loadURDF(urdf_path, [0, 0, 0])
         #reset the position of the robot
         for joint_index in range(p.getNumJoints(self.robot_id)):
             p.resetJointState(self.robot_id, joint_index, targetValue=0)
@@ -74,6 +86,11 @@ class QuadrupedEnv(gym.Env):
         #Used to reset the robot to a starting position if it spends too much time on the ground
         return self._get_observation(), {}
     
+
+    def follow_robot(self, robot_id):
+        pos, ori = p.getBasePositionAndOrientation(robot_id)
+        p.resetDebugVisualizerCamera(cameraDistance=1.0, cameraYaw=50, cameraPitch=-35, cameraTargetPosition=pos)
+
     def step(self, action):
         #Called at every step of the episode, with the action chosen by the agent given as input
         for joint_index in range(12):  # Limit to 12 joints
@@ -102,6 +119,7 @@ class QuadrupedEnv(gym.Env):
         base_velocity, base_angular_velocity = p.getBaseVelocity(self.robot_id)
         #Checking if the target velocity is reached
         # Checking if the target velocity is reached
+        self.follow_robot(self.robot_id)
         return obs, reward, done, truncated, {}
     
     def _get_observation(self):
@@ -151,7 +169,9 @@ class QuadrupedEnv(gym.Env):
         roll_angle = robot_orientation_euler[0]
         roll_reward = abs(roll_angle - math.pi)
 
-        reward = - linear_error - angular_error - self.time_on_ground*0.2 - roll_reward*0.2
+        reward_position = position[0] - self.prev_position[0] + position[1] - self.prev_position[1]
+        reward = - linear_error - angular_error - self.time_on_ground*0.2 - roll_reward*0.2 + reward_position*1.5
+        self.prev_position = position
         return reward
 
 
