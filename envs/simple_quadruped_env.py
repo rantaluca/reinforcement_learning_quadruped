@@ -1,4 +1,4 @@
-#ANTALUCA Robert 2024
+#ANTALUCA Robert 2024-2025
 
 #This is a simple RL environment for my spot inspired quadruped robot to learn to reach a target position.
 #The robot has 12 joints and gets information about its joint positions, joint velocities, is linear and angular velocity from a simulated imu and data from a simulated lidar.
@@ -17,28 +17,36 @@ from stable_baselines3 import PPO
 
 
 class QuadrupedEnv(gym.Env):
-    def __init__(self):
+    def __init__(self,gui=True, ctrl_hz=50, sim_hz=500):
         super(QuadrupedEnv, self).__init__()
-        
-        #Action space is the 12 joints that can be controlled 
+        self.ctrl_hz = ctrl_hz
+        self.sim_hz = sim_hz
+        self.sim_substeps = int(sim_hz // ctrl_hz)
+        self.gui = gui
+
+        #Config pybullet
+        p.connect(p.GUI if gui else p.DIRECT)
+        p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
+        p.setAdditionalSearchPath(pybullet_data.getDataPath()) # pybullet models lib
+        # p.configureDebugVisualizer(p.COV_ENABLE_SHADOWS, 1)  # Enable shadows
+        # p.configureDebugVisualizer(p.COV_ENABLE_WIREFRAME, 0)  # Disable wireframe
+
+        #Action space is the 12 joints of the robot
+        self.action_scale = np.deg2rad(30)  # +/- 30 degrees
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(12,), dtype=np.float32)
         
         #Observation space is the joint positions, joint velocities, linear and angular velocity from the imu and twist target
         #self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(36,), dtype=np.float32)  #Observation: Example state + LIDAR + IMU
         #self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(66,), dtype=np.float32)  #Observation: state + LIDAR + IMU + Pose Estimation + Pose Target
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(37,), dtype=np.float32)  #14?? (joint positions) + 14??? (joint velocities) + 6 (IMU data) + 3 (twist target)
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(33,), dtype=np.float32)  #12 (joint positions) + 12 (joint velocities) + 6 (IMU data) + 3 (twist target)
 
+        # target/rewards parameters
         self.time_on_ground = 0
-        self.treshold_target = 0.05
-        self.prev_position = [0, 0, 0]
-        self.prev_orientation = [0, 0, 0, 1]
-        
-        p.connect(p.GUI)  # or p.GUI non-graphical version
-        p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)  # Disable default UI
-        p.configureDebugVisualizer(p.COV_ENABLE_SHADOWS, 1)  # Enable shadows
-        p.configureDebugVisualizer(p.COV_ENABLE_WIREFRAME, 0)  # Disable wireframe
+        self.threshold_target = 0.05
+        self.prev_position = np.zeros(2, dtype=np.float32)
 
-        p.setAdditionalSearchPath(pybullet_data.getDataPath()) #Pybullet models library
+
+
     
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -75,7 +83,7 @@ class QuadrupedEnv(gym.Env):
         # #adding a visual target ( with a sphere)
         # self.target_id = p.loadURDF("sphere_small.urdf", self.target_position)
         #Adding the robot
-        urdf_path = os.path.join(os.path.dirname(__file__), "../ressources/urdfs/spot/spot_v1.urdf")
+        urdf_path = os.path.join(os.path.dirname(__file__), "../ressources/urdfs/spot/spot_v2.urdf")
         self.robot_id = p.loadURDF(urdf_path, [0, 0, 0])
         #reset the position of the robot
         for joint_index in range(p.getNumJoints(self.robot_id)):

@@ -7,7 +7,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 env = DummyVecEnv([lambda: QuadrupedEnv()])
 
 # Loading the trained model
-model_path = "models/ppo_quadruped_checkpoint_8860000_steps.zip"
+model_path = "models_11/ppo_quadruped_checkpoint_2610000_steps.zip"
 model = PPO.load(model_path, env=env, verbose=1)
 print("Loaded model from", model_path)
 
