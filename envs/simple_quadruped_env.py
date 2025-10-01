@@ -1,148 +1,165 @@
-#ANTALUCA Robert 2024-2025
+"""
+@ANTALUCA Robert 2024-2025
 
-#This is a simple RL environment for my spot inspired quadruped robot to learn to reach a target position.
-#The robot has 12 joints and gets information about its joint positions, joint velocities, is linear and angular velocity from a simulated imu and data from a simulated lidar.
+This is an environment for a spot inspired quadruped robot to learn to follow a given twist command.
+The robot has 12 joints and gets observations from:
+    Joint positions, joint velocities, his linear and angular velocity (simulated imu).
 
-#Environment is based on the OpenAI gym interface with stable baselines3 for the RL algorithms and uses the Pybullet physics engine.
+Environment is based on the OpenAI gym, stable baselines3 for the algorithms and Pybullet physics engine.
 
+Code formatted with black
+Pylint score: 9.32/10
+"""
+
+import math
+import os
+import numpy as np
 import pybullet as p
 import pybullet_data
 import gymnasium as gym
-from gymnasium import spaces
-import numpy as np
-import math
-import os
-import time
-from stable_baselines3 import PPO
 
 
 class QuadrupedEnv(gym.Env):
-    def __init__(self,gui=True, ctrl_hz=50, sim_hz=500):
+    """
+    A custom OpenAI Gym environment for a quadruped robot to learn to follow a given twist command.
+    The robot has 12 joints and gets observations from joint positions, joint velocities, and his linear and angular velocity (IMU).
+    The environment uses PyBullet as the physics engine.
+    """
+
+    def __init__(self, gui=True, ctrl_hz=5, sim_hz=500):
+        """Initialize the QuadrupedEnv environment."""
         super(QuadrupedEnv, self).__init__()
         self.ctrl_hz = ctrl_hz
         self.sim_hz = sim_hz
         self.sim_substeps = int(sim_hz // ctrl_hz)
         self.gui = gui
+        self.debug_reward_id = None
 
-        #Config pybullet
+        self.kp = 1.2  # position gain
+        self.kd = 0.2  # velocity gain
+        self.tau = 4.5  # max torque
+
+        # Config pybullet
         p.connect(p.GUI if gui else p.DIRECT)
         p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
-        p.setAdditionalSearchPath(pybullet_data.getDataPath()) # pybullet models lib
+        p.setAdditionalSearchPath(pybullet_data.getDataPath())  # pybullet models lib
         # p.configureDebugVisualizer(p.COV_ENABLE_SHADOWS, 1)  # Enable shadows
         # p.configureDebugVisualizer(p.COV_ENABLE_WIREFRAME, 0)  # Disable wireframe
 
-        #Action space is the 12 joints of the robot
-        self.action_scale = np.deg2rad(30)  # +/- 30 degrees
-        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(12,), dtype=np.float32)
-        
-        #Observation space is the joint positions, joint velocities, linear and angular velocity from the imu and twist target
-        #self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(36,), dtype=np.float32)  #Observation: Example state + LIDAR + IMU
-        #self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(66,), dtype=np.float32)  #Observation: state + LIDAR + IMU + Pose Estimation + Pose Target
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(33,), dtype=np.float32)  #12 (joint positions) + 12 (joint velocities) + 6 (IMU data) + 3 (twist target)
+        # roblot parameters
+        self.robot_id = None
+        self.actuated_ids = None
+        self.q0 = None  # initial pose
+        self.limits = None
+
+        # Action space is the 12 joints of the robot
+        self.action_scale = np.deg2rad(25)  # +/- 25 degrees
+        self.action_space = gym.spaces.Box(
+            low=-1.0, high=1.0, shape=(12,), dtype=np.float32
+        )
+
+        # Observation space is the joint positions, joint velocities, linear and angular velocity from the imu and twist target
+        self.observation_space = gym.spaces.Box(
+            low=-np.inf, high=np.inf, shape=(33,), dtype=np.float32
+        )  # 12 (joint positions) + 12 (joint velocities) + 6 (IMU data) + 3 (twist target)
+
+        # those range are used to normalize the observations (better for PPO)
+        self.joint_positions_range = np.pi
+        self.joint_velocities_range = 0.3  # rad/s
+        self.imu_linear_velocity_range = np.array([2.0, 2.0, 2.0])  # m/s
+        self.imu_angular_velocity_range = np.array([5.0, 5.0, 5.0])  # rad/s
 
         # target/rewards parameters
+        self.target_twist = np.array(
+            [0.05, 0.0, 0.0], dtype=np.float32
+        )  # will make it dynamic later
+        self.target_twist_range = np.array(
+            [0.5, 0.5, 1.0], dtype=np.float32
+        )  # max values for normalization
+
         self.time_on_ground = 0
-        self.threshold_target = 0.05
-        self.prev_position = np.zeros(2, dtype=np.float32)
+        self.prev_base_xy = np.zeros(2, dtype=np.float32)
 
-
-
-    
     def reset(self, seed=None, options=None):
+        """Reset the environment to an initial state and return the initial observation."""
         super().reset(seed=seed)
         self.np_random, _ = gym.utils.seeding.np_random(seed)
-    
-        #Random target position and orientation (not used anymore)
-        # self.target_position = [np.random.uniform(3.0, 20.0), np.random.uniform(3.0, 20.0), np.random.uniform(0.4, 0.7)]
-        # self.target_orientation = [np.random.uniform(-np.pi, np.pi), np.random.uniform(-np.pi, np.pi), np.random.uniform(-np.pi, np.pi)]
 
-        #target is now a linear velocity in a random one direction and an angular velocity 
-        # self.target_twist = {
-        #     'linear_x': np.random.uniform(-0.3, 0.3),  # linear velocity in the x-direction
-        #     'linear_y': np.random.uniform(-0.3, 0.3),  # linear velocity in the y-direction
-        #     'angular': np.random.uniform(-0.5, 0.5)    # angular velocity (rotation)
-        # }
-
-        #simple forward target
-        self.target_twist = {
-            'linear_x': 0.50,  # linear velocity in the x-direction
-            'linear_y': 0,  # linear velocity in the y-direction
-            'angular': 0    # angular velocity (rotation)
-        }
-
-        #Called at the start of an episode
         p.resetSimulation()
-        p.setGravity(0, 0,-9.81)
-        p.setTimeStep(1/500)  # Smaller time step
+        p.setGravity(0, 0, -9.81)
+        p.setTimeStep(1.0 / self.sim_hz)
+        p.setPhysicsEngineParameter(enableConeFriction=1)
 
-        p.setPhysicsEngineParameter(numSolverIterations=50)
-
+        # Adding the ground
         plane_id = p.loadURDF("plane.urdf")
-        #Setting the friction for the ground with the robot
-        p.changeDynamics(plane_id, -1, spinningFriction=0.001, rollingFriction=0.001)
-        # #adding a visual target ( with a sphere)
-        # self.target_id = p.loadURDF("sphere_small.urdf", self.target_position)
-        #Adding the robot
-        urdf_path = os.path.join(os.path.dirname(__file__), "../ressources/urdfs/spot/spot_v2.urdf")
-        self.robot_id = p.loadURDF(urdf_path, [0, 0, 0])
-        #reset the position of the robot
-        for joint_index in range(p.getNumJoints(self.robot_id)):
-            p.resetJointState(self.robot_id, joint_index, targetValue=0)
-        p.resetBasePositionAndOrientation(self.robot_id, [0, 0, 0], [0, 0, 0, 1])
+
+        p.changeDynamics(
+            plane_id,
+            -1,
+            lateralFriction=1.0,
+            spinningFriction=0.01,
+            rollingFriction=0.01,
+        )  # friction settings for the ground
+
+        # Spawning the robot
+        urdf_path = os.path.join(
+            os.path.dirname(__file__), "../ressources/urdfs/spot/spot_v2.urdf"
+        )
+        self.robot_id = p.loadURDF(
+            urdf_path,
+            [0, 0, 0.20],
+            p.getQuaternionFromEuler([0, 0, 0]),
+            useFixedBase=False,
+        )
+
+        # discover actuated joints (because of the lidar/imu links in urdf that are not actuated)
+        ids, q0, lim = [], [], []
+        for j in range(p.getNumJoints(self.robot_id)):
+            ji = p.getJointInfo(self.robot_id, j)
+            if ji[2] in [p.JOINT_REVOLUTE, p.JOINT_PRISMATIC]:
+                ids.append(j)
+                q0.append(0.0)
+                lim.append([ji[8], ji[9]])
+        self.actuated_ids = ids[:12]
+        self.q0 = np.array(q0[:12], np.float32)
+        self.limits = np.array(lim[:12], np.float32)
+
+        # disable defaults and set neutral
+        for j in range(p.getNumJoints(self.robot_id)):
+            p.setJointMotorControl2(self.robot_id, j, p.VELOCITY_CONTROL, force=0.0)
+            # p.setJointMotorControl2(self.robot_id, j, p.TORQUE_CONTROL, force=0.0)
+        for k, j in enumerate(self.actuated_ids):
+            p.resetJointState(self.robot_id, j, float(self.q0[k]))
+
+        # reset proprio variables
         self.time_on_ground = 0
+        self.prev_base_xy = np.array(
+            p.getBasePositionAndOrientation(self.robot_id)[0][:2], np.float32
+        )
 
-        #Used to reset the robot to a starting position if it spends too much time on the ground
         return self._get_observation(), {}
-    
 
-    def follow_robot(self, robot_id):
-        pos, ori = p.getBasePositionAndOrientation(robot_id)
-        p.resetDebugVisualizerCamera(cameraDistance=1.0, cameraYaw=50, cameraPitch=-35, cameraTargetPosition=pos)
+    def _follow_robot(self):
+        """Make the camera follow the robot."""
+        if not self.gui:
+            return
+        pos, _ = p.getBasePositionAndOrientation(self.robot_id)
+        p.resetDebugVisualizerCamera(
+            cameraDistance=1.0, cameraYaw=50, cameraPitch=-35, cameraTargetPosition=pos
+        )
 
-    def step(self, action):
-        #Called at every step of the episode, with the action chosen by the agent given as input
-        for joint_index in range(12):  # Limit to 12 joints
-            p.setJointMotorControl2(self.robot_id, joint_index, p.POSITION_CONTROL, action[joint_index])
-        p.stepSimulation()
-        #The resulting observation, reward, done and info are computed and returned
-        truncated = False
-        done = False
-        obs = self._get_observation()
-        reward = self.compute_reward()
-        #If the robot reach the point ot falls the episode is terminated
-        contact_points = p.getContactPoints(bodyA=self.robot_id, linkIndexA=-1)
-
-        #If the robot is on the ground for too long, the episode is terminated
-        if contact_points:
-            self.time_on_ground += 1
-            if self.time_on_ground > 450:
-                done = True
-                truncated = True   
-                    
-        # Checking if position and orientation are close enough to the target
-        # if (np.linalg.norm(np.array(position) - np.array(self.target_position)) < self.treshold_target and
-        #     np.linalg.norm(np.array(robot_orientation_euler) - np.array(self.target_orientation)) < self.treshold_target):
-        #     done = True
-
+    def _simulate_imu(self, noise=False):
+        """Simulate the IMU data with some noise."""
+        # Simulates the imu data
         base_velocity, base_angular_velocity = p.getBaseVelocity(self.robot_id)
-        #Checking if the target velocity is reached
-        # Checking if the target velocity is reached
-        self.follow_robot(self.robot_id)
-        return obs, reward, done, truncated, {}
-    
-    def _get_observation(self):
-        #Returns the  the joint positions, joint velocities, linear and angular velocity from the imu and data from the lidar
-        joint_states = p.getJointStates(self.robot_id, range(p.getNumJoints(self.robot_id)))
-        joint_positions = [state[0] for state in joint_states]
-        joint_velocities = [state[1] for state in joint_states]
-        # position, orientation = p.getBasePositionAndOrientation(self.robot_id) #to be commented if no position in observatio
-        # orientation_euler = p.getEulerFromQuaternion(orientation)
-        #lidar_data = self._simulate_lidar(position, orientation)
-        imu_data = self._simulate_imu()
-        #return np.array(joint_positions + joint_velocities + lidar_data + imu_data + list(position) + list(orientation_euler) + self.target_position + self.target_orientation)
-        #return np.array(joint_positions + joint_velocities + lidar_data + imu_data + self.target_position + self.target_orientation)
-        return np.array(joint_positions + joint_velocities + imu_data +  [self.target_twist['linear_x'], self.target_twist['linear_y'], self.target_twist['angular']])
-    
+        imu_data = np.asarray(
+            list(base_velocity) + list(base_angular_velocity), dtype=np.float32
+        )
+        if noise:
+            imu_data += self.np_random.normal(
+                0, 0.02, imu_data.shape
+            )  # noise for better sim2real robustness
+        return imu_data
 
     # def _simulate_lidar(self, position, orientation):
     #     lidar_data = []
@@ -150,66 +167,190 @@ class QuadrupedEnv(gym.Env):
     #     lidar_position = [position[0], position[1], position[2]+lidar_height]
     #     for i in range(20):  # Collect 20 points
     #         angle = i * (2 * np.pi / 20)  # Divide 360° into 20 segments
-    #         ray_from = lidar_position  
+    #         ray_from = lidar_position
     #         ray_to = [4 * np.sin(angle), 4 * np.cos(angle), position[2]+lidar_height]
     #         result = p.rayTest(ray_from, ray_to)
     #         distance = result[0][2] if result[0][0] != -1 else 4.0  # Max distance if no hit
     #         lidar_data.append(distance)
     #     return lidar_data
-    
-    def _simulate_imu(self):
-        #Simulates the imu data
-        base_velocity, base_angular_velocity = p.getBaseVelocity(self.robot_id)
-        imu_data = list(base_velocity) + list(base_angular_velocity)
-        return imu_data
-    
+
+    def _get_observation(self):
+        """Get the current observation from the environment.
+        Returns:
+            observation (np.array): normalized observation array of shape (33,).
+        """
+
+        # Getting the observation:
+        joint_states = p.getJointStates(self.robot_id, self.actuated_ids)
+
+        joint_positions = np.asarray(
+            [js[0] for js in joint_states], dtype=np.float32
+        )  # 12
+        joint_velocities = np.asarray(
+            [js[1] for js in joint_states], dtype=np.float32
+        )  # 12
+
+        imu_data = np.asarray(self._simulate_imu(noise=True), dtype=np.float32)  # 6
+
+        target = np.asarray(self.target_twist, dtype=np.float32)  # 3
+
+        # Normalizing the observation
+        epsilon = 1e-8  # to avoid division by zero
+
+        joint_positions_norm = joint_positions / (self.joint_positions_range + epsilon)
+        joint_velocities_norm = joint_velocities / (
+            self.joint_velocities_range + epsilon
+        )
+        imu_linear_velocity_norm = imu_data[:3] / (
+            self.imu_linear_velocity_range + epsilon
+        )
+        imu_angular_velocity_norm = imu_data[3:] / (
+            self.imu_angular_velocity_range + epsilon
+        )
+        target_norm = target / (self.target_twist_range + epsilon)
+
+        observation = np.concatenate(
+            [
+                joint_positions_norm,
+                joint_velocities_norm,
+                imu_linear_velocity_norm,
+                imu_angular_velocity_norm,
+                target_norm,
+            ]
+        ).astype(np.float32)
+
+        observation = np.clip(observation, -1.5, 1.5)  # clipping for safety
+
+        # asserts
+        assert observation.shape == (33,), f"obs shape {observation.shape}"
+        if not np.all(np.isfinite(observation)):
+            raise ValueError("Non-finite obs")
+
+        return observation
+
     def compute_reward(self):
-        position, orientation = p.getBasePositionAndOrientation(self.robot_id)
-        robot_orientation_euler = p.getEulerFromQuaternion(orientation)
-        base_velocity, base_angular_velocity = p.getBaseVelocity(self.robot_id)
+        """Compute the reward based on the current state of the robot."""
 
-        linear_velocity = np.array(base_velocity)
-        angular_velocity = np.array(base_angular_velocity)
-        
-        linear_error = np.linalg.norm(linear_velocity[:2] - np.array([self.target_twist['linear_x'], self.target_twist['linear_y']]))
-        angular_error = np.abs(angular_velocity[2] - self.target_twist['angular'])
+        # getting position of the robot
+        base_position, base_quat = p.getBasePositionAndOrientation(self.robot_id)
+        rot_mat = np.array(p.getMatrixFromQuaternion(base_quat)).reshape(3, 3)
 
-        roll_angle = robot_orientation_euler[0]
-        roll_reward = abs(roll_angle - math.pi)
+        # Uprightness penalty
+        z_base = rot_mat[:, 2]
+        uprightness = float(
+            np.dot(z_base, np.array([0, 0, 1]))
+        )  # cosine between z_base and the world z axis
+        uprightness = np.clip(uprightness, -1.0, 1.0)  # for safety
 
-        reward_position = position[0] - self.prev_position[0] + position[1] - self.prev_position[1]
-        reward = - linear_error - angular_error - self.time_on_ground*0.2 - roll_reward*0.2 + reward_position*1.5
-        self.prev_position = position
+        # Velocity penalty
+        linear_velocity, angular_velocity = p.getBaseVelocity(self.robot_id)
+        vel_error = np.linalg.norm(linear_velocity[:2] - self.target_twist[:2])
+        ang_vel_error = abs(angular_velocity[2] - self.target_twist[2])
+
+        # Going forward in the right direction reward
+        base_xy = np.array(base_position[:2], dtype=np.float32)
+        step_disp_xy = base_xy - self.prev_base_xy
+        desired_dir = self.target_twist[:2] / (
+            np.linalg.norm(self.target_twist[:2]) + 1e-6
+        )  # unit vec
+        progress_along_dir = float(step_disp_xy @ desired_dir)  # meters
+        self.prev_base_xy = base_xy
+
+        # Weights
+        w_vel = 2.0  # planar velocity tracking
+        w_yaw = 2.0  # yaw rate tracking
+        w_upright = 0.4  # uprightness
+        w_prog = 15.0  # progress shaping
+        w_vz = 0.1  # vertical slip penalty
+
+        reward = (
+            -w_vel * vel_error
+            - w_yaw * ang_vel_error
+            + w_upright * uprightness
+            + w_prog * progress_along_dir
+            - w_vz * abs(linear_velocity[2])
+        )*5.0  # scaling for better rewards
         return reward
 
+    def _termination(self):
+        """
+        Done if fallen (low base height or high tilt).
+        Truncate if base link stays in ground contact a long period.
+        """
+        # base_pos, base_quat = p.getBasePositionAndOrientation(self.robot_id)
+        # base_height = float(base_pos[2])
 
-    # def compute_reward_position(self):
-    #     position, orientation = p.getBasePositionAndOrientation(self.robot_id)
-    #     robot_orientation_euler = p.getEulerFromQuaternion(orientation)
-    #     linear_velocity, base_angular_velocity = p.getBaseVelocity(self.robot_id)
-    #     # Computes the positional distance and orientation to the target
-    #     position_distance = np.linalg.norm(np.array(position) - np.array(self.target_position))
-    #     orientation_distance = np.linalg.norm(np.array(orientation) - np.array(self.target_orientation))   
-    #     # Calculates the magnitude of velocity in the x direction and y direction ( not used anymore in the reward function)
-    #     forward_plane_velocity = math.sqrt(linear_velocity[0] ** 2 + linear_velocity[1] ** 2)
-    #     #Calculates the roll angle ( meaning the robot is flipped over)
-    #     roll_angle = orientation[0]
-    #     roll_reward = -abs(roll_angle - math.pi)
-    #     # Calculates the reward with position, orientation and time on ground penalties
-    #     if position_distance > 0.3:
-    #         reward = -position_distance*3 -self.time_on_ground*0.2 + roll_reward + 1.5*linear_velocity[0] 
-    #     else:
-    #         reward = -position_distance*3 -orientation_distance*3 - self.time_on_ground*0.2 + roll_reward + 1.5* linear_velocity[0]
-    #     return reward
-    
-    def render(self, mode='human'):
+        # R = np.array(p.getMatrixFromQuaternion(base_quat)).reshape(3, 3)
+        # body_z_world = R[:, 2]
+        # # tilt angle between body up and world up
+        # tilt = float(np.arccos(np.clip(body_z_world @ np.array([0.0, 0.0, 1.0]), -1.0, 1.0)))
+
+        done = False
+        truncated = False
+
+        # # Fallen criteria: very low base or too much tilt
+        # if base_height < 0.01:
+        #     print(f"Episode done: base_height={base_height:.2f}")
+        #     done = True
+
+        # if tilt > np.deg2rad(70.0):
+        #     print(f"Episode done tilt={math.degrees(tilt):.1f} deg")
+        #     done = True
+
+        # # Count base link contacts with the ground (linkIndexA == -1)
+        # base_contacts = [cp for cp in p.getContactPoints(bodyA=self.robot_id) if cp[2] == -1]
+        # if base_contacts:
+        #     self.time_on_ground += 1
+        # else:
+        #     self.time_on_ground = 0
+
+        # # If the base scrapes for ~0.9 s at sim_hz, truncate the episode
+        # if self.time_on_ground > int(0.9 * self.sim_hz):
+        #     print("Episode truncated due to prolonged base contact with ground.")
+        #     done = True
+        #     truncated = True
+
+        return done, truncated
+
+    def step(self, action):
+        """Called at every step of the episode to apply the action given as a parameter.
+        Returns the new observation, reward, done, and info."""
+
+        action = np.asarray(action, np.float32)  # ensure action is a numpy array
+        q_cmd = self.q0 + self.action_scale * action
+        q_cmd = np.clip(q_cmd, self.limits[:, 0], self.limits[:, 1])
+
+        for _ in range(self.sim_substeps):
+            for k, j in enumerate(self.actuated_ids):
+                p.setJointMotorControl2(
+                    bodyIndex=self.robot_id,
+                    jointIndex=j,
+                    controlMode=p.POSITION_CONTROL,
+                    targetPosition=q_cmd[k],
+                    positionGain=self.kp,
+                    velocityGain=self.kd,
+                    force=self.tau,
+                )
+            p.stepSimulation()
+
+        obs = self._get_observation()
+        reward = self.compute_reward()
+        if self.gui:
+            if self.debug_reward_id is not None:
+                p.removeUserDebugItem(self.debug_reward_id)
+            self.debug_reward_id = p.addUserDebugText(
+                f"Reward: {reward:.2f}",
+                self.prev_base_xy.tolist() + [0.5],
+                textColorRGB=[1, 0, 0] if reward < 0 else [0, 1, 0],
+                textSize=2.5,
+            )
+
+        done, trunc = self._termination()
+        self._follow_robot()
+        return obs, reward, done, trunc, {}
+
+    def render(self, mode="human"):
         pass
 
     def close(self):
         p.disconnect()
-
-    
-
-    
-
-

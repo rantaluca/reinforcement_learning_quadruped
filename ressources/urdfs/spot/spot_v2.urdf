@@ -209,7 +209,7 @@
     <mu2>0.2</mu2>
     <self_collide>true</self_collide>
   </gazebo>
-  <gazebo reference="base_laser_1">
+  <!-- <gazebo reference="base_laser_1">
     <material>Gazebo/Silver</material>
     <mu1>0.2</mu1>
     <mu2>0.2</mu2>
@@ -220,7 +220,7 @@
     <mu1>0.2</mu1>
     <mu2>0.2</mu2>
     <self_collide>true</self_collide>
-  </gazebo>
+  </gazebo> -->
   <link name="base_link">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -481,7 +481,7 @@
       </geometry>
     </collision>
   </link>
-  <link name="base_laser_1">
+  <!-- <link name="base_laser_1">
     <inertial>
       <origin rpy="0 0 0" xyz="7.105427357601002e-17 2.7042609146085694e-07 0.00987517472943178"/>
       <mass value="0.03571195095111218"/>
@@ -500,8 +500,8 @@
         <mesh filename="meshes/base_laser_1.stl" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
-  </link>
-  <link name="base_imu">
+  </link> -->
+  <!-- <link name="base_imu">
     <inertial>
       <origin rpy="0 0 0" xyz="3.552713678800501e-17 2.7042609152677644e-07 -0.0024999999999999883"/>
       <mass value="0.0008185"/>
@@ -520,7 +520,7 @@
         <mesh filename="meshes/base_imu_1.stl" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
-  </link>
+  </link> -->
 
 
 <!-- FRONT LEFT KNEE (30 kg·cm, spring) -->
@@ -627,7 +627,7 @@
   <axis xyz="-0.0 -1.0 0.0"/>
   <limit effort="1.37" lower="-1.570796" upper="1.570796" velocity="6.5"/>
 </joint>
-
+<!-- 
   <joint name="Rigid 48" type="fixed">
     <origin rpy="0 0 0" xyz="0.0 -0.024491 0.215"/>
     <parent link="base_link"/>
@@ -637,5 +637,5 @@
     <origin rpy="0 0 0" xyz="0.0 -0.024491 0.125"/>
     <parent link="base_link"/>
     <child link="base_imu"/>
-  </joint>
+  </joint> -->
 </robot>
