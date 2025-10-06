@@ -13,6 +13,7 @@ Pylint score: 9.32/10
 
 import math
 import os
+from turtle import done
 import numpy as np
 import pybullet as p
 import pybullet_data
@@ -26,7 +27,7 @@ class QuadrupedEnv(gym.Env):
     The environment uses PyBullet as the physics engine.
     """
 
-    def __init__(self, gui=True, ctrl_hz=5, sim_hz=500):
+    def __init__(self, gui=True, ctrl_hz=10, sim_hz=500):
         """Initialize the QuadrupedEnv environment."""
         super(QuadrupedEnv, self).__init__()
         self.ctrl_hz = ctrl_hz
@@ -45,6 +46,11 @@ class QuadrupedEnv(gym.Env):
         p.setAdditionalSearchPath(pybullet_data.getDataPath())  # pybullet models lib
         # p.configureDebugVisualizer(p.COV_ENABLE_SHADOWS, 1)  # Enable shadows
         # p.configureDebugVisualizer(p.COV_ENABLE_WIREFRAME, 0)  # Disable wireframe
+        p.setPhysicsEngineParameter(numSolverIterations=50)
+        p.setPhysicsEngineParameter(contactBreakingThreshold=0.001)
+        p.setPhysicsEngineParameter(erp=0.2, contactERP=0.05, frictionERP=0.2)
+        p.setPhysicsEngineParameter(enableConeFriction=1, deterministicOverlappingPairs=1)
+        p.setPhysicsEngineParameter(enableFileCaching=0)
 
         # roblot parameters
         self.robot_id = None
@@ -78,7 +84,9 @@ class QuadrupedEnv(gym.Env):
         )  # max values for normalization
 
         self.time_on_ground = 0
+        self.alive_bonus = 0.0
         self.prev_base_xy = np.zeros(2, dtype=np.float32)
+        self.last_50_positions = []
 
     def reset(self, seed=None, options=None):
         """Reset the environment to an initial state and return the initial observation."""
@@ -100,6 +108,7 @@ class QuadrupedEnv(gym.Env):
             spinningFriction=0.01,
             rollingFriction=0.01,
         )  # friction settings for the ground
+        # ground
 
         # Spawning the robot
         urdf_path = os.path.join(
@@ -136,6 +145,8 @@ class QuadrupedEnv(gym.Env):
         self.prev_base_xy = np.array(
             p.getBasePositionAndOrientation(self.robot_id)[0][:2], np.float32
         )
+        self.last_50_positions = [self.prev_base_xy.tolist()]
+        self.alive_bonus = 0.0
 
         return self._get_observation(), {}
 
@@ -242,7 +253,7 @@ class QuadrupedEnv(gym.Env):
         )  # cosine between z_base and the world z axis
         uprightness = np.clip(uprightness, -1.0, 1.0)  # for safety
 
-        # Velocity penalty
+        # Velocity penalty  
         linear_velocity, angular_velocity = p.getBaseVelocity(self.robot_id)
         vel_error = np.linalg.norm(linear_velocity[:2] - self.target_twist[:2])
         ang_vel_error = abs(angular_velocity[2] - self.target_twist[2])
@@ -256,12 +267,17 @@ class QuadrupedEnv(gym.Env):
         progress_along_dir = float(step_disp_xy @ desired_dir)  # meters
         self.prev_base_xy = base_xy
 
+        # alive bonus for not falling
+        self.alive_bonus += 0.1
+
+
         # Weights
-        w_vel = 2.0  # planar velocity tracking
-        w_yaw = 2.0  # yaw rate tracking
-        w_upright = 0.4  # uprightness
-        w_prog = 15.0  # progress shaping
+        w_vel = 5.3  # planar velocity tracking
+        w_yaw = 3.3  # yaw 
+        w_upright = 0.1  # uprightness
+        w_prog = 5.1  # progress shaping
         w_vz = 0.1  # vertical slip penalty
+        w_alive = 0.3  # alive bonus
 
         reward = (
             -w_vel * vel_error
@@ -269,48 +285,36 @@ class QuadrupedEnv(gym.Env):
             + w_upright * uprightness
             + w_prog * progress_along_dir
             - w_vz * abs(linear_velocity[2])
-        )*5.0  # scaling for better rewards
+            + w_alive * self.alive_bonus
+    )*10.0  # scaling for better rewards
         return reward
 
     def _termination(self):
         """
-        Done if fallen (low base height or high tilt).
-        Truncate if base link stays in ground contact a long period.
+        Termination logic:
+        - done  : (use for fall/flip elsewhere if needed)
+        - trunc : (a) clear stagnation or (b) sustained misalignment w.r.t. target direction
         """
-        # base_pos, base_quat = p.getBasePositionAndOrientation(self.robot_id)
-        # base_height = float(base_pos[2])
-
-        # R = np.array(p.getMatrixFromQuaternion(base_quat)).reshape(3, 3)
-        # body_z_world = R[:, 2]
-        # # tilt angle between body up and world up
-        # tilt = float(np.arccos(np.clip(body_z_world @ np.array([0.0, 0.0, 1.0]), -1.0, 1.0)))
-
         done = False
-        truncated = False
+        trunc = False
+        term_reward = 0.0
 
-        # # Fallen criteria: very low base or too much tilt
-        # if base_height < 0.01:
-        #     print(f"Episode done: base_height={base_height:.2f}")
-        #     done = True
-
-        # if tilt > np.deg2rad(70.0):
-        #     print(f"Episode done tilt={math.degrees(tilt):.1f} deg")
-        #     done = True
-
-        # # Count base link contacts with the ground (linkIndexA == -1)
-        # base_contacts = [cp for cp in p.getContactPoints(bodyA=self.robot_id) if cp[2] == -1]
-        # if base_contacts:
-        #     self.time_on_ground += 1
-        # else:
-        #     self.time_on_ground = 0
-
-        # # If the base scrapes for ~0.9 s at sim_hz, truncate the episode
-        # if self.time_on_ground > int(0.9 * self.sim_hz):
-        #     print("Episode truncated due to prolonged base contact with ground.")
-        #     done = True
-        #     truncated = True
-
-        return done, truncated
+        if len(self.last_50_positions)>140:
+            # mean of the orientation of the last 50 positions
+            for i in range(1, len(self.last_50_positions)):
+                vec = np.array(self.last_50_positions[i]) - np.array(self.last_50_positions[i-1])
+                if np.linalg.norm(vec)>1e-3:
+                    vec /= np.linalg.norm(vec)
+                    angle = math.atan2(vec[1], vec[0])
+                    break
+            mean_vec = np.array([math.cos(angle), math.sin(angle)])
+            target_vec = self.target_twist[:2] / (np.linalg.norm(self.target_twist[:2])+1e-6)
+            alignment = float(np.dot(mean_vec, target_vec))  # cosine between the two
+            if alignment < 0.5:
+                term_reward = -20.0
+                trunc = True
+                print("Terminated: misalignment")
+        return done, trunc, term_reward
 
     def step(self, action):
         """Called at every step of the episode to apply the action given as a parameter.
@@ -338,16 +342,23 @@ class QuadrupedEnv(gym.Env):
         if self.gui:
             if self.debug_reward_id is not None:
                 p.removeUserDebugItem(self.debug_reward_id)
+            # reward + details
             self.debug_reward_id = p.addUserDebugText(
                 f"Reward: {reward:.2f}",
                 self.prev_base_xy.tolist() + [0.5],
                 textColorRGB=[1, 0, 0] if reward < 0 else [0, 1, 0],
                 textSize=2.5,
-            )
+            ) 
+        # update last 50 positions
+        base_pos, _ = p.getBasePositionAndOrientation(self.robot_id)
+        current_xy = np.array(base_pos[:2], dtype=np.float32)
+        self.last_50_positions.append(current_xy.tolist())
+        if len(self.last_50_positions) > 250:
+            self.last_50_positions.pop(0)
 
-        done, trunc = self._termination()
+        done, trunc, term_reward = self._termination()
         self._follow_robot()
-        return obs, reward, done, trunc, {}
+        return obs, reward+term_reward, done, trunc, {}
 
     def render(self, mode="human"):
         pass
