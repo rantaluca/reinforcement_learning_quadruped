@@ -36,23 +36,32 @@ class QuadrupedEnv(gym.Env):
         self.gui = gui
         self.debug_reward_id = None
 
-        self.kp = 1.2  # position gain
-        self.kd = 0.2  # velocity gain
-        self.tau = 4.5  # max torque
+        self.kp = 2.2  # position gain
+        self.kd = 0.5  # velocity gain
+        self.tau = 4.0  # max torque
 
         # Config pybullet
         p.connect(p.GUI if gui else p.DIRECT)
         p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
         p.setAdditionalSearchPath(pybullet_data.getDataPath())  # pybullet models lib
-        # p.configureDebugVisualizer(p.COV_ENABLE_SHADOWS, 1)  # Enable shadows
-        # p.configureDebugVisualizer(p.COV_ENABLE_WIREFRAME, 0)  # Disable wireframe
-        p.setPhysicsEngineParameter(numSolverIterations=50)
-        p.setPhysicsEngineParameter(contactBreakingThreshold=0.001)
-        p.setPhysicsEngineParameter(erp=0.2, contactERP=0.05, frictionERP=0.2)
-        p.setPhysicsEngineParameter(enableConeFriction=1, deterministicOverlappingPairs=1)
-        p.setPhysicsEngineParameter(enableFileCaching=0)
 
-        # roblot parameters
+        p.setTimeStep(1.0 / sim_hz)
+        p.setPhysicsEngineParameter(fixedTimeStep=1.0 / sim_hz, numSubSteps=4)
+
+        # Physics parameters
+        p.setPhysicsEngineParameter(
+            numSolverIterations=120,  
+            solverResidualThreshold=1e-10,
+            erp=0.2, 
+            contactERP=0.2, 
+            frictionERP=0.2, 
+            enableConeFriction=1,
+            deterministicOverlappingPairs=1,
+            contactBreakingThreshold=0.02,  
+            restitutionVelocityThreshold=0.0,
+        )
+
+        # robot parameters
         self.robot_id = None
         self.actuated_ids = None
         self.q0 = None  # initial pose
@@ -71,7 +80,7 @@ class QuadrupedEnv(gym.Env):
 
         # those range are used to normalize the observations (better for PPO)
         self.joint_positions_range = np.pi
-        self.joint_velocities_range = 0.3  # rad/s
+        self.joint_velocities_range = 1.0  # rad/s
         self.imu_linear_velocity_range = np.array([2.0, 2.0, 2.0])  # m/s
         self.imu_angular_velocity_range = np.array([5.0, 5.0, 5.0])  # rad/s
 
@@ -86,7 +95,7 @@ class QuadrupedEnv(gym.Env):
         self.time_on_ground = 0
         self.alive_bonus = 0.0
         self.prev_base_xy = np.zeros(2, dtype=np.float32)
-        self.last_50_positions = []
+        self.last_positions = []
 
     def reset(self, seed=None, options=None):
         """Reset the environment to an initial state and return the initial observation."""
@@ -104,9 +113,10 @@ class QuadrupedEnv(gym.Env):
         p.changeDynamics(
             plane_id,
             -1,
-            lateralFriction=1.0,
+            lateralFriction=1.5,
             spinningFriction=0.01,
             rollingFriction=0.01,
+            restitution=0.0,
         )  # friction settings for the ground
         # ground
 
@@ -140,12 +150,30 @@ class QuadrupedEnv(gym.Env):
         for k, j in enumerate(self.actuated_ids):
             p.resetJointState(self.robot_id, j, float(self.q0[k]))
 
+        # feets high grip and friction anchor
+        # finding the feet links
+        foot_links = []
+        for j in range(p.getNumJoints(self.robot_id)):
+            ji = p.getJointInfo(self.robot_id, j)
+            if ji[12].decode("utf-8") in ["FL_foot", "FR_foot", "RL_foot", "RR_foot"]:
+                foot_links.append(j)
+        self.foot_links = foot_links
+        for fl in self.foot_links:
+            p.changeDynamics(
+                self.robot_id,
+                fl,
+                lateralFriction=1.8,
+                spinningFriction=0.03,
+                rollingFriction=0.02,
+                restitution=0.0,
+                frictionAnchor=1,
+            )  # friction settings for the feet
+
         # reset proprio variables
-        self.time_on_ground = 0
         self.prev_base_xy = np.array(
             p.getBasePositionAndOrientation(self.robot_id)[0][:2], np.float32
         )
-        self.last_50_positions = [self.prev_base_xy.tolist()]
+        self.last_positions = [self.prev_base_xy.tolist()]
         self.alive_bonus = 0.0
 
         return self._get_observation(), {}
@@ -253,7 +281,7 @@ class QuadrupedEnv(gym.Env):
         )  # cosine between z_base and the world z axis
         uprightness = np.clip(uprightness, -1.0, 1.0)  # for safety
 
-        # Velocity penalty  
+        # Velocity penalty
         linear_velocity, angular_velocity = p.getBaseVelocity(self.robot_id)
         vel_error = np.linalg.norm(linear_velocity[:2] - self.target_twist[:2])
         ang_vel_error = abs(angular_velocity[2] - self.target_twist[2])
@@ -270,10 +298,9 @@ class QuadrupedEnv(gym.Env):
         # alive bonus for not falling
         self.alive_bonus += 0.1
 
-
         # Weights
         w_vel = 5.3  # planar velocity tracking
-        w_yaw = 3.3  # yaw 
+        w_yaw = 3.3  # yaw
         w_upright = 0.1  # uprightness
         w_prog = 5.1  # progress shaping
         w_vz = 0.1  # vertical slip penalty
@@ -286,7 +313,7 @@ class QuadrupedEnv(gym.Env):
             + w_prog * progress_along_dir
             - w_vz * abs(linear_velocity[2])
             + w_alive * self.alive_bonus
-    )*10.0  # scaling for better rewards
+        ) * 10.0  # scaling for better rewards
         return reward
 
     def _termination(self):
@@ -299,16 +326,20 @@ class QuadrupedEnv(gym.Env):
         trunc = False
         term_reward = 0.0
 
-        if len(self.last_50_positions)>140:
+        if len(self.last_positions) > 140:
             # mean of the orientation of the last 50 positions
-            for i in range(1, len(self.last_50_positions)):
-                vec = np.array(self.last_50_positions[i]) - np.array(self.last_50_positions[i-1])
-                if np.linalg.norm(vec)>1e-3:
+            for i in range(1, len(self.last_positions)):
+                vec = np.array(self.last_positions[i]) - np.array(
+                    self.last_positions[i - 1]
+                )
+                if np.linalg.norm(vec) > 1e-3:
                     vec /= np.linalg.norm(vec)
                     angle = math.atan2(vec[1], vec[0])
                     break
             mean_vec = np.array([math.cos(angle), math.sin(angle)])
-            target_vec = self.target_twist[:2] / (np.linalg.norm(self.target_twist[:2])+1e-6)
+            target_vec = self.target_twist[:2] / (
+                np.linalg.norm(self.target_twist[:2]) + 1e-6
+            )
             alignment = float(np.dot(mean_vec, target_vec))  # cosine between the two
             if alignment < 0.5:
                 term_reward = -20.0
@@ -324,17 +355,26 @@ class QuadrupedEnv(gym.Env):
         q_cmd = self.q0 + self.action_scale * action
         q_cmd = np.clip(q_cmd, self.limits[:, 0], self.limits[:, 1])
 
-        for _ in range(self.sim_substeps):
-            for k, j in enumerate(self.actuated_ids):
-                p.setJointMotorControl2(
-                    bodyIndex=self.robot_id,
-                    jointIndex=j,
-                    controlMode=p.POSITION_CONTROL,
-                    targetPosition=q_cmd[k],
-                    positionGain=self.kp,
-                    velocityGain=self.kd,
-                    force=self.tau,
-                )
+        # apply action and step the simulation
+        for _ in range(self.sim_substeps): 
+            #custom torque pid control
+            js = p.getJointStates(self.robot_id, self.actuated_ids)
+            q = np.array([s[0] for s in js], dtype=np.float32) # joint positions
+            qd = np.array([s[1] for s in js], dtype=np.float32) # joint velocities
+
+            q_err = q_cmd - q # position error
+            qd_err = -qd # velocity error 
+
+            tau = self.kp * q_err + self.kd * qd_err #simple continuous pid control formula
+            tau = np.clip(tau, -self.tau, self.tau) #limiting the torque to max tau
+
+            p.setJointMotorControlArray(
+                bodyIndex=self.robot_id,
+                jointIndices=self.actuated_ids,
+                controlMode=p.TORQUE_CONTROL,
+                forces=tau.tolist(),
+            )# applying calculated torques
+            
             p.stepSimulation()
 
         obs = self._get_observation()
@@ -348,17 +388,18 @@ class QuadrupedEnv(gym.Env):
                 self.prev_base_xy.tolist() + [0.5],
                 textColorRGB=[1, 0, 0] if reward < 0 else [0, 1, 0],
                 textSize=2.5,
-            ) 
-        # update last 50 positions
+            )
+
+        # update last positions
         base_pos, _ = p.getBasePositionAndOrientation(self.robot_id)
         current_xy = np.array(base_pos[:2], dtype=np.float32)
-        self.last_50_positions.append(current_xy.tolist())
-        if len(self.last_50_positions) > 250:
-            self.last_50_positions.pop(0)
+        self.last_positions.append(current_xy.tolist())
+        if len(self.last_positions) > 250:
+            self.last_positions.pop(0)
 
         done, trunc, term_reward = self._termination()
         self._follow_robot()
-        return obs, reward+term_reward, done, trunc, {}
+        return obs, reward + term_reward, done, trunc, {}
 
     def render(self, mode="human"):
         pass
