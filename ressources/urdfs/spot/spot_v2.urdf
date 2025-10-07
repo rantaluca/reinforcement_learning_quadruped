@@ -534,7 +534,7 @@
 
 <!-- FRONT LEFT HIP F/B (25 kg·cm) -->
 <joint name="Revolute 30" type="revolute">
-  <origin rpy="0 0 0" xyz="-0.038998 -0.0085 0.0"/>
+  <origin rpy="0.8 0 0" xyz="-0.038998 -0.0085 0.0"/>
   <parent link="elbow_fl_1"/>
   <child link="upper_fl_1"/>
   <axis xyz="-1.0 0.0 0.0"/>
@@ -543,7 +543,7 @@
 
 <!-- BACK LEFT HIP F/B (25 kg·cm) -->
 <joint name="Revolute 32" type="revolute">
-  <origin rpy="0 0 0" xyz="-0.038998 0.0085 0.0"/>
+  <origin rpy="0.8 0 0" xyz="-0.038998 0.0085 0.0"/>
   <parent link="elbow_bl_5"/>
   <child link="upper_bl_1"/>
   <axis xyz="-1.0 0.0 0.0"/>
@@ -561,7 +561,7 @@
 
 <!-- FRONT RIGHT HIP F/B (25 kg·cm) -->
 <joint name="Revolute 35" type="revolute">
-  <origin rpy="0 0 0" xyz="0.038998 -0.0085 0.0"/>
+  <origin rpy="0.8 0 0" xyz="0.038998 -0.0085 0.0"/>
   <parent link="elbow_fr_1"/>
   <child link="upper_fr_1"/>
   <axis xyz="1.0 -0.0 0.0"/>
@@ -570,7 +570,7 @@
 
 <!-- BACK RIGHT HIP F/B (25 kg·cm) -->
 <joint name="Revolute 36" type="revolute">
-  <origin rpy="0 0 0" xyz="0.038998 0.0085 0.0"/>
+  <origin rpy="0.8 0 0" xyz="0.038998 0.0085 0.0"/>
   <parent link="elbow_br_1"/>
   <child link="upper_br_1"/>
   <axis xyz="1.0 -0.0 0.0"/>

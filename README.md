@@ -1,6 +1,7 @@
 # Spot-Inspired Quadruped Reinforcement Learning 🐾
 
 <p align="center">
+    <img src="assets/reel_bot.png" alt="Quadruped robot simulation" width="420"/>
   <img src="assets/quadruped_env.png" alt="Quadruped robot simulation" width="420"/>
 </p>
 
@@ -110,6 +111,9 @@ pip install gymnasium pybullet stable-baselines3 numpy matplotlib tqdm
 You can launch training with or without GUI visualization:
 
 ```bash
+
+export PYTHONPATH=.
+
 # Headless mode (faster)
 python train_quadruped.py
 
@@ -148,4 +152,4 @@ Website: [antaluca.com](https://antaluca.com)
 ## License
 
 MIT License — free to use, modify, and extend for research or educational purposes.
-export PYTHONPATH=.
+

@@ -36,9 +36,9 @@ class QuadrupedEnv(gym.Env):
         self.gui = gui
         self.debug_reward_id = None
 
-        self.kp = 2.2  # position gain
-        self.kd = 0.5  # velocity gain
-        self.tau = 4.0  # max torque
+        self.kp = 6.5  # position gain
+        self.kd = 1.0  # velocity gain
+        self.tau = 3.0  # max torque
 
         # Config pybullet
         p.connect(p.GUI if gui else p.DIRECT)
@@ -301,7 +301,7 @@ class QuadrupedEnv(gym.Env):
         # Weights
         w_vel = 5.3  # planar velocity tracking
         w_yaw = 3.3  # yaw
-        w_upright = 0.1  # uprightness
+        w_upright = 2.0  # uprightness
         w_prog = 5.1  # progress shaping
         w_vz = 0.1  # vertical slip penalty
         w_alive = 0.3  # alive bonus
