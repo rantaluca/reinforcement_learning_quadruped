@@ -36,8 +36,8 @@ class QuadrupedEnv(gym.Env):
         self.gui = gui
         self.debug_reward_id = None
 
-        self.kp = 3.5  # position gain
-        self.kd = 0.4  # velocity gain
+        self.kp = 6.5  # position gain
+        self.kd = 1.0  # velocity gain
         self.tau = 3.0  # max torque
 
         # Config pybullet
@@ -46,7 +46,7 @@ class QuadrupedEnv(gym.Env):
         p.setAdditionalSearchPath(pybullet_data.getDataPath())  # pybullet models lib
 
         p.setTimeStep(1.0 / sim_hz)
-        p.setPhysicsEngineParameter(fixedTimeStep=1.0 / sim_hz, numSubSteps=1)
+        p.setPhysicsEngineParameter(fixedTimeStep=1.0 / sim_hz, numSubSteps=4)
 
         # Physics parameters
         p.setPhysicsEngineParameter(
@@ -113,13 +113,10 @@ class QuadrupedEnv(gym.Env):
         p.changeDynamics(
             plane_id,
             -1,
-            lateralFriction=5.5,
+            lateralFriction=1.5,
             spinningFriction=0.01,
             rollingFriction=0.01,
             restitution=0.0,
-            frictionAnchor=1,
-            contactStiffness=1e5,    # durcit le contact
-            contactDamping=1e3, 
         )  # friction settings for the ground
         # ground
 
@@ -165,15 +162,11 @@ class QuadrupedEnv(gym.Env):
             p.changeDynamics(
                 self.robot_id,
                 fl,
-                lateralFriction=4.8,
+                lateralFriction=1.8,
                 spinningFriction=0.03,
                 rollingFriction=0.02,
                 restitution=0.0,
                 frictionAnchor=1,
-                contactStiffness=1e5,
-                contactDamping=1e3,
-                linearDamping=0.04,     # un peu de damping aide contre la glisse résiduelle
-                angularDamping=0.04,
             )  # friction settings for the feet
 
         # reset proprio variables
@@ -305,18 +298,9 @@ class QuadrupedEnv(gym.Env):
         # alive bonus for not falling
         self.alive_bonus += 0.1
 
-        # staying on the same place penalty
-        if len(self.last_positions) > 100:
-            mean_pos = np.mean(np.array(self.last_positions[-240:]), axis=0)
-            dist_from_mean = np.linalg.norm(base_xy - mean_pos)
-            if dist_from_mean < 0.3:
-                self.alive_bonus -= 0.4  # penalize for stagnation
-            else:
-                self.alive_bonus += 0.05  # small bonus for moving
-
         # Weights
         w_vel = 5.3  # planar velocity tracking
-        w_yaw = 7.3  # yaw
+        w_yaw = 3.3  # yaw
         w_upright = 2.0  # uprightness
         w_prog = 5.1  # progress shaping
         w_vz = 0.1  # vertical slip penalty
@@ -329,7 +313,7 @@ class QuadrupedEnv(gym.Env):
             + w_prog * progress_along_dir
             - w_vz * abs(linear_velocity[2])
             + w_alive * self.alive_bonus
-        )
+        ) * 10.0  # scaling for better rewards
         return reward
 
     def _termination(self):
@@ -342,7 +326,7 @@ class QuadrupedEnv(gym.Env):
         trunc = False
         term_reward = 0.0
 
-        if len(self.last_positions) > 240:
+        if len(self.last_positions) > 140:
             # mean of the orientation of the last 50 positions
             for i in range(1, len(self.last_positions)):
                 vec = np.array(self.last_positions[i]) - np.array(
@@ -357,8 +341,8 @@ class QuadrupedEnv(gym.Env):
                 np.linalg.norm(self.target_twist[:2]) + 1e-6
             )
             alignment = float(np.dot(mean_vec, target_vec))  # cosine between the two
-            if alignment < 0.0:
-                term_reward = -15.0
+            if alignment < 0.5:
+                term_reward = -20.0
                 trunc = True
                 print("Terminated: misalignment")
         return done, trunc, term_reward
@@ -410,7 +394,7 @@ class QuadrupedEnv(gym.Env):
         base_pos, _ = p.getBasePositionAndOrientation(self.robot_id)
         current_xy = np.array(base_pos[:2], dtype=np.float32)
         self.last_positions.append(current_xy.tolist())
-        if len(self.last_positions) > 450:
+        if len(self.last_positions) > 250:
             self.last_positions.pop(0)
 
         done, trunc, term_reward = self._termination()

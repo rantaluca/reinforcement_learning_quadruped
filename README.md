@@ -115,10 +115,14 @@ You can launch training with or without GUI visualization:
 export PYTHONPATH=.
 
 # Headless mode (faster)
-python train_quadruped.py
+python script/train.py
 
 # With GUI
-python train_quadruped.py --gui
+python script/train.py --gui
+
+# Testing a policy 
+
+python script/test.py
 ```
 
 Optional arguments:

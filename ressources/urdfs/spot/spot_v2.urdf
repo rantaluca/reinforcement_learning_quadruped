@@ -224,7 +224,7 @@
   <link name="base_link">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
-      <mass value="4.569295440014468"/>
+      <mass value="3.569295440014468"/>
       <inertia ixx="0.064329" ixy="-0.0" ixz="-0.0" iyy="0.010005" iyz="-0.000337" izz="0.069095"/>
     </inertial>
     <visual>
@@ -525,74 +525,76 @@
 
 <!-- FRONT LEFT KNEE (30 kg·cm, spring) -->
 <joint name="Revolute 29" type="revolute">
-  <origin rpy="0 0 0" xyz="-0.003 0.024449 -0.083518"/>
+  <origin rpy="-0.2 0 0" xyz="-0.003 0.024449 -0.083518"/>
   <parent link="upper_fl_1"/>
   <child link="lower_fl_1"/>
   <axis xyz="1.0 -0.0 -0.0"/>
-  <limit effort="1.47" lower="-0.872665" upper="0.785398" velocity="6.5"/>
+  <limit effort="1.47" lower="-0.872665" upper="0.5085398" velocity="4.5"/>
 </joint>
 
 <!-- FRONT LEFT HIP F/B (25 kg·cm) -->
 <joint name="Revolute 30" type="revolute">
-  <origin rpy="0.8 0 0" xyz="-0.038998 -0.0085 0.0"/>
+  <origin rpy="-0.5 0 0" xyz="-0.038998 -0.0085 0.0"/>
   <parent link="elbow_fl_1"/>
   <child link="upper_fl_1"/>
   <axis xyz="-1.0 0.0 0.0"/>
-  <limit effort="1.72" lower="0.523599" upper="3.316126" velocity="6.5"/>
+  <limit effort="1.72" lower="0.223599" upper="1.516126" velocity="4.5"/>
+  <!-- limit rotation   -->
+
 </joint>
 
 <!-- BACK LEFT HIP F/B (25 kg·cm) -->
 <joint name="Revolute 32" type="revolute">
-  <origin rpy="0.8 0 0" xyz="-0.038998 0.0085 0.0"/>
+  <origin rpy="-0.5 0 0" xyz="-0.038998 0.0085 0.0"/>
   <parent link="elbow_bl_5"/>
   <child link="upper_bl_1"/>
   <axis xyz="-1.0 0.0 0.0"/>
-  <limit effort="1.72" lower="0.523599" upper="3.316126" velocity="6.5"/>
+  <limit effort="1.72" lower="0.223599" upper="1.516126" velocity="4.5"/>
 </joint>
 
 <!-- BACK LEFT KNEE (35 kg·cm, spring) -->
 <joint name="Revolute 33" type="revolute">
-  <origin rpy="0 0 0" xyz="-0.003 0.02445 -0.083518"/>
+  <origin rpy="-0.2 0 0" xyz="-0.003 0.02445 -0.083518"/>
   <parent link="upper_bl_1"/>
   <child link="lower_bl_1"/>
   <axis xyz="1.0 -0.0 -0.0"/>
-  <limit effort="1.72" lower="-0.872665" upper="0.785398" velocity="6.5"/>
+  <limit effort="1.72" lower="-0.872665" upper="0.5085398" velocity="4.5"/>
 </joint>
 
 <!-- FRONT RIGHT HIP F/B (25 kg·cm) -->
 <joint name="Revolute 35" type="revolute">
-  <origin rpy="0.8 0 0" xyz="0.038998 -0.0085 0.0"/>
+  <origin rpy="-0.5 0 0" xyz="0.038998 -0.0085 0.0"/>
   <parent link="elbow_fr_1"/>
   <child link="upper_fr_1"/>
   <axis xyz="1.0 -0.0 0.0"/>
-  <limit effort="1.72" lower="-3.316126" upper="-0.523599" velocity="6.5"/>
+  <limit effort="1.72" lower="-1.516126" upper="-0.223599" velocity="4.5"/>
 </joint>
 
 <!-- BACK RIGHT HIP F/B (25 kg·cm) -->
 <joint name="Revolute 36" type="revolute">
-  <origin rpy="0.8 0 0" xyz="0.038998 0.0085 0.0"/>
+  <origin rpy="-0.5 0 0" xyz="0.038998 0.0085 0.0"/>
   <parent link="elbow_br_1"/>
   <child link="upper_br_1"/>
   <axis xyz="1.0 -0.0 0.0"/>
-  <limit effort="1.72" lower="-3.316126" upper="-0.523599" velocity="6.5"/>
+  <limit effort="1.72" lower="-1.516126" upper="-0.223599" velocity="4.5"/>
 </joint>
 
 <!-- FRONT RIGHT KNEE (30 kg·cm, spring) -->
 <joint name="Revolute 37" type="revolute">
-  <origin rpy="0 0 0" xyz="0.003 0.024449 -0.083518"/>
+  <origin rpy="-0.2 0 0" xyz="0.003 0.024449 -0.083518"/>
   <parent link="upper_fr_1"/>
   <child link="lower_fr_1"/>
   <axis xyz="1.0 -0.0 -0.0"/>
-  <limit effort="1.47" lower="-0.872665" upper="0.785398" velocity="6.5"/>
+  <limit effort="1.47" lower="-0.872665" upper="0.5085398" velocity="4.5"/>
 </joint>
 
 <!-- BACK RIGHT KNEE (35 kg·cm, spring) -->
 <joint name="Revolute 38" type="revolute">
-  <origin rpy="0 0 0" xyz="0.003 0.02445 -0.083518"/>
+  <origin rpy="-0.2 0 0" xyz="0.003 0.02445 -0.083518"/>
   <parent link="upper_br_1"/>
   <child link="lower_br_1"/>
   <axis xyz="-1.0 0.0 -0.0"/>
-  <limit effort="1.72" lower="-0.872665" upper="0.785398" velocity="6.5"/>
+  <limit effort="1.72" lower="-0.872665" upper="0.5085398" velocity="4.5"/>
 </joint>
 
 <!-- LATERAL HIPS (20 kg·cm) -->
@@ -601,7 +603,7 @@
   <parent link="base_link"/>
   <child link="elbow_bl_5"/>
   <axis xyz="-0.0 -1.0 0.0"/>
-  <limit effort="1.37" lower="-1.570796" upper="1.570796" velocity="6.5"/>
+  <limit effort="1.37" lower="-0.370796" upper="0.370796" velocity="4.5"/>
 </joint>
 
 <joint name="Revolute 45" type="revolute">
@@ -609,7 +611,7 @@
   <parent link="base_link"/>
   <child link="elbow_fl_1"/>
   <axis xyz="-0.0 -1.0 0.0"/>
-  <limit effort="1.37" lower="-1.570796" upper="1.570796" velocity="6.5"/>
+  <limit effort="1.37" lower="-0.370796" upper="0.370796" velocity="4.5"/>
 </joint>
 
 <joint name="Revolute 46" type="revolute">
@@ -617,7 +619,7 @@
   <parent link="base_link"/>
   <child link="elbow_br_1"/>
   <axis xyz="0.0 -1.0 0.0"/>
-  <limit effort="1.37" lower="-1.570796" upper="1.570796" velocity="6.5"/>
+  <limit effort="1.37" lower="-0.370796" upper="0.370796" velocity="4.5"/>
 </joint>
 
 <joint name="Revolute 47" type="revolute">
@@ -625,7 +627,7 @@
   <parent link="base_link"/>
   <child link="elbow_fr_1"/>
   <axis xyz="-0.0 -1.0 0.0"/>
-  <limit effort="1.37" lower="-1.570796" upper="1.570796" velocity="6.5"/>
+  <limit effort="1.37" lower="-0.570796" upper="0.370796" velocity="4.5"/>
 </joint>
 <!-- 
   <joint name="Rigid 48" type="fixed">

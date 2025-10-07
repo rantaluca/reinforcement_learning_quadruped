@@ -13,7 +13,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train a quadruped robot using PPO.")
     parser.add_argument("--gui", action="store_true", help="Enable GUI for the environment.")
     parser.add_argument("--timesteps", type=int, default=15000000, help="Total timesteps for training.")
-    parser.add_argument("--save-freq", type=int, default=100000, help="Frequency of saving the model.")
+    parser.add_argument("--save-freq", type=int, default=50000, help="Frequency of saving the model.")
     args = parser.parse_args()
 
     # Creating the environment with or without GUI
